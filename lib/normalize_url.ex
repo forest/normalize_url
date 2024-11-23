@@ -9,7 +9,8 @@ defmodule NormalizeUrl do
           strip_fragment: boolean(),
           strip_params: boolean(),
           normalize_protocol: boolean(),
-          add_root_path: boolean()
+          add_root_path: boolean(),
+          trip_trailing_slash: boolean()
         ]
 
   @doc """
@@ -89,7 +90,8 @@ defmodule NormalizeUrl do
         strip_www: true,
         strip_fragment: true,
         strip_params: false,
-        add_root_path: false
+        add_root_path: false,
+        trip_trailing_slash: false
       ],
       options
     )
@@ -134,8 +136,14 @@ defmodule NormalizeUrl do
   defp normalize_path(%URI{} = uri, options) do
     path =
       cond do
-        options[:add_root_path] && (!uri.path || uri.path == "") -> "/"
-        true -> uri.path
+        options[:add_root_path] && (is_nil(uri.path) || uri.path == "") ->
+          "/"
+
+        options[:trip_trailing_slash] && (!is_nil(uri.path) && uri.path != "") ->
+          String.trim_trailing(uri.path, "/")
+
+        true ->
+          uri.path
       end
 
     %{uri | path: path}

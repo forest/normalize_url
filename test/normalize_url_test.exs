@@ -90,6 +90,19 @@ defmodule NormalizeUrlTest do
     )
   end
 
+  test "does not strip query params with option strip_params: false" do
+    assert(
+      NormalizeUrl.normalize_url("google.com?a=1&b=2", strip_params: false) ==
+        "http://google.com?a=1&b=2"
+    )
+  end
+
+  test "does strip query params with option strip_params: true" do
+    assert(
+      NormalizeUrl.normalize_url("google.com?a=1&b=2", strip_params: true) == "http://google.com"
+    )
+  end
+
   test "adds root path if enabled and needed" do
     assert(
       NormalizeUrl.normalize_url("http://google.com", add_root_path: true) == "http://google.com/"

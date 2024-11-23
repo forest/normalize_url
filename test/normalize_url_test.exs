@@ -117,6 +117,27 @@ defmodule NormalizeUrlTest do
     )
   end
 
+  test "does not removes trailing slash from path if trip_trailing_slash false" do
+    assert(
+      NormalizeUrl.normalize_url("http://google.com/test/", trip_trailing_slash: false) ==
+        "http://google.com/test/"
+    )
+  end
+
+  test "removes trailing slash from path if trip_trailing_slash true" do
+    assert(
+      NormalizeUrl.normalize_url("http://google.com/test/", trip_trailing_slash: true) ==
+        "http://google.com/test"
+    )
+
+    assert(
+      NormalizeUrl.normalize_url("http://google.com",
+        add_root_path: true,
+        trip_trailing_slash: true
+      ) == "http://google.com/"
+    )
+  end
+
   test "handles URLs with port" do
     assert NormalizeUrl.normalize_url("http://example.com:3000") == "http://example.com:3000"
     assert NormalizeUrl.normalize_url("https://example.com:3000") == "https://example.com:3000"

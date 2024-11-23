@@ -1,8 +1,7 @@
 defmodule NormalizeUrl do
   @moduledoc """
   The base module of NormalizeUrl.
-
-  It exposes a single function, normalize_url.
+  Provides URL normalization functionality using URI parsing.
   """
 
   @type url_options :: [
@@ -14,34 +13,66 @@ defmodule NormalizeUrl do
         ]
 
   @doc """
-  Normalizes a url. This is useful for displaying, storing, comparing, etc.
-
-  Args:
-
-  * `url` - the url to normalize, string
-
-  Options:
-
-  * `strip_www` - strip the www from the url, boolean
-  * `strip_fragment` - strip the fragment from the url, boolean
-  * `normalize_protocol` - prepend `http:` if the url is protocol relative, boolean
-
-  Returns a url as a string.
+  Normalizes a URL using URI parsing and manipulation.
   """
   @spec normalize_url(String.t(), url_options()) :: String.t()
-  def normalize_url(url, options \\ []) do
-    scheme = filter_scheme(url)
+  def normalize_url(url, options \\ [])
 
-    if scheme == "http" || scheme == "ftp" || scheme == nil do
-      normalize_http_or_ftp_url(url, options)
+  def normalize_url(url, options) when is_binary(url) do
+    options = normalize_options(options)
+
+    url = add_default_scheme(url, options)
+
+    with {:ok, uri} <- URI.new(url),
+         true <- supported_scheme?(uri.scheme) do
+      uri
+      |> normalize_scheme(options)
+      |> normalize_host(options)
+      |> normalize_port()
+      |> normalize_path(options)
+      |> normalize_query(options)
+      |> normalize_fragment(options)
+      |> URI.to_string()
+      |> normalize_case(options)
     else
-      url
+      _ -> url
     end
   end
 
+  def normalize_url(_url, _options), do: ""
+
+  defp add_default_scheme(url, options) do
+    uri = URI.parse(url)
+    schema = get_scheme(url)
+
+    if schema do
+      url
+    else
+      cond do
+        options[:normalize_protocol] && String.starts_with?(url, "//") ->
+          url = scheme_from_port(uri) <> ":" <> url
+          drop_port_from_url(url)
+
+        options[:normalize_protocol] ->
+          scheme_from_port(uri) <> "://" <> url
+
+        true ->
+          url
+      end
+    end
+  end
+
+  defp drop_port_from_url(url) do
+    url |> URI.parse() |> then(fn uri -> %{uri | port: nil} end) |> URI.to_string()
+  end
+
+  defp scheme_from_port(%{port: port}) when port in [nil, 80], do: "http"
+  defp scheme_from_port(%{port: port}) when port in [8080, 443], do: "https"
+  defp scheme_from_port(_), do: ""
+
   # Extracts the scheme from a URL, returning nil if it's not an accepted scheme.
   # Needed because URI.parse("example.com:4000") will return "example.com" as the scheme.
-  defp filter_scheme(url) do
+  defp get_scheme(url) do
     %{scheme: scheme} = URI.parse(url)
 
     if Enum.any?(accepted_schemes(), &(&1 == scheme)), do: scheme, else: nil
@@ -51,95 +82,97 @@ defmodule NormalizeUrl do
     iana_schemes() ++ ["javascript"]
   end
 
-  defp normalize_http_or_ftp_url(url, options) do
-    options =
-      Keyword.merge(
-        [
-          normalize_protocol: true,
-          strip_www: true,
-          strip_fragment: true,
-          strip_params: false,
-          add_root_path: false
-        ],
-        options
-      )
-
-    url = if Regex.match?(~r/^\/\//, url), do: "http:" <> url, else: url
-
-    scheme =
-      if options[:normalize_protocol] do
-        if Regex.match?(~r/^ftp:\/\//, url), do: "ftp://", else: "http://"
-      else
-        "//"
-      end
-
-    url =
-      if options[:normalize_protocol] && !Regex.match?(~r/^(http|ftp:\/\/)/, url) do
-        "http://" <> url
-      else
-        url
-      end
-
-    uri =
-      if options[:downcase] do
-        URI.parse(String.downcase(url))
-      else
-        URI.parse(url)
-      end
-
-    port =
-      if options[:normalize_protocol] && uri.port,
-        do: ":" <> Integer.to_string(uri.port),
-        else: ""
-
-    {port, scheme} =
-      cond do
-        uri.port == 8080 || uri.port == 443 ->
-          {"", "https://"}
-
-        uri.port == 21 && scheme == "ftp://" ->
-          {"", scheme}
-
-        options[:normalize_protocol] && uri.port == 80 ->
-          {"", "http://"}
-
-        true ->
-          {port, scheme}
-      end
-
-    path = uri.path
-
-    path =
-      if options[:add_root_path] && is_nil(path) do
-        "/"
-      else
-        path
-      end
-
-    host_and_path = if path, do: uri.host <> port <> path, else: uri.host <> port
-
-    host_and_path =
-      if !options[:strip_fragment] && uri.fragment do
-        host_and_path <> "#" <> uri.fragment
-      else
-        host_and_path
-      end
-
-    host_and_path =
-      if options[:strip_www] do
-        Regex.replace(~r/^www\./, host_and_path, "")
-      else
-        host_and_path
-      end
-
-    scheme <> host_and_path <> query_params(uri.query, options[:strip_params])
+  defp normalize_options(options) do
+    Keyword.merge(
+      [
+        normalize_protocol: true,
+        strip_www: true,
+        strip_fragment: true,
+        strip_params: false,
+        add_root_path: false
+      ],
+      options
+    )
   end
 
-  defp query_params(_query, true), do: ""
-  defp query_params(nil, _strip_params), do: ""
+  defp supported_scheme?(scheme) when scheme in [nil, "http", "https", "ftp"], do: true
+  defp supported_scheme?(_), do: false
 
-  defp query_params(query, _strip_params),
-    do: "?" <> (query |> URI.decode_query() |> URI.encode_query())
+  defp normalize_scheme(%URI{} = uri, options) do
+    scheme =
+      cond do
+        options[:normalize_protocol] && uri.scheme == nil -> "http"
+        true -> uri.scheme
+      end
+
+    %{uri | scheme: scheme}
+  end
+
+  defp normalize_host(%URI{} = uri, options) do
+    host =
+      if options[:strip_www] do
+        String.replace(uri.host || "", ~r/^www\./, "")
+      else
+        uri.host
+      end
+
+    %{uri | host: host}
+  end
+
+  defp normalize_port(%URI{} = uri) do
+    port =
+      case {uri.scheme, uri.port} do
+        {"http", 80} -> nil
+        {"https", 443} -> nil
+        {"ftp", 21} -> nil
+        {_, port} -> port
+      end
+
+    %{uri | port: port}
+  end
+
+  defp normalize_path(%URI{} = uri, options) do
+    path =
+      cond do
+        options[:add_root_path] && (!uri.path || uri.path == "") -> "/"
+        true -> uri.path
+      end
+
+    %{uri | path: path}
+  end
+
+  defp normalize_query(%URI{} = uri, options) do
+    query =
+      if options[:strip_params] do
+        nil
+      else
+        uri.query
+        |> decode_and_encode_query()
+      end
+
+    %{uri | query: query}
+  end
+
+  defp decode_and_encode_query(nil), do: nil
+
+  defp decode_and_encode_query(query) do
+    query
+    |> URI.decode_query()
+    |> URI.encode_query()
+  end
+
+  defp normalize_fragment(%URI{} = uri, options) do
+    fragment = if options[:strip_fragment], do: nil, else: uri.fragment
+    %{uri | fragment: fragment}
+  end
+
+  defp normalize_case(url, options) do
+    if options[:downcase] do
+      String.downcase(url)
+    else
+      url
+    end
+  end
 
   # Taken from https://www.iana.org/assignments/uri-schemes/uri-schemes.txt
   defp iana_schemes do

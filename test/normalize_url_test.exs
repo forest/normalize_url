@@ -2,6 +2,11 @@ defmodule NormalizeUrlTest do
   use ExUnit.Case
   doctest NormalizeUrl
 
+  test "returns empty string if url is not binary" do
+    assert(NormalizeUrl.normalize_url(nil) == "")
+    assert(NormalizeUrl.normalize_url(123) == "")
+  end
+
   test "adds a protocol by default" do
     assert(NormalizeUrl.normalize_url("example.com") == "http://example.com")
     assert(NormalizeUrl.normalize_url("example.com/dir") == "http://example.com/dir")
@@ -14,7 +19,10 @@ defmodule NormalizeUrlTest do
   end
 
   test "keeps the https protocol" do
-    assert(NormalizeUrl.normalize_url("https://google.com") == "https://google.com")
+    assert(
+      NormalizeUrl.normalize_url("https://google.com", add_root_path: true) ==
+        "https://google.com/"
+    )
   end
 
   test "keeps the mailto protocol" do

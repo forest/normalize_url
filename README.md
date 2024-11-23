@@ -92,6 +92,18 @@ NormalizeUrl.normalize_url("//www.johnotander.com", [normalize_protocol: false])
 # => "//johnotander.com"
 ```
 
+##### trim_trailing_slash
+
+Type: `boolean`
+Default: `false`
+
+Removes the trailing slash from the path.
+
+```elixir
+NormalizeUrl.normalize_url("http://example.com/test/", [trim_trailing_slash: true])
+# => "http://example.com/test"
+```
+
 ##### add_root_path
 
 Type: `boolean`

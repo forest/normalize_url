@@ -8,6 +8,7 @@ defmodule NormalizeUrl do
   @type url_options :: [
           strip_www: boolean(),
           strip_fragment: boolean(),
+          strip_params: boolean(),
           normalize_protocol: boolean(),
           add_root_path: boolean()
         ]
@@ -57,6 +58,7 @@ defmodule NormalizeUrl do
           normalize_protocol: true,
           strip_www: true,
           strip_fragment: true,
+          strip_params: false,
           add_root_path: false
         ],
         options
@@ -130,11 +132,14 @@ defmodule NormalizeUrl do
         host_and_path
       end
 
-    scheme <> host_and_path <> query_params(uri.query)
+    scheme <> host_and_path <> query_params(uri.query, options[:strip_params])
   end
 
-  defp query_params(nil), do: ""
-  defp query_params(query), do: "?" <> (query |> URI.decode_query() |> URI.encode_query())
+  defp query_params(_query, true), do: ""
+  defp query_params(nil, _strip_params), do: ""
+
+  defp query_params(query, _strip_params),
+    do: "?" <> (query |> URI.decode_query() |> URI.encode_query())
 
   # Taken from https://www.iana.org/assignments/uri-schemes/uri-schemes.txt
   defp iana_schemes do

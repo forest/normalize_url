@@ -34,7 +34,7 @@ NormalizeUrl.normalize_url("//foo.bar#about")
 
 ##### strip_www
 
-Type: `boolean`   
+Type: `boolean`
 Default: `true`
 
 Remove `www.` from the url
@@ -49,7 +49,7 @@ NormalizeUrl.normalize_url("http://www.johnotander.com", [strip_www: false])
 
 ##### strip_fragment
 
-Type: `boolean`   
+Type: `boolean`
 Default: `true`
 
 Remove `#framents` from the url
@@ -62,9 +62,24 @@ NormalizeUrl.normalize_url("http://www.johnotander.com", [strip_fragment: false]
 # => "http://johnotander.com#about.html"
 ```
 
+##### strip_params
+
+Type: `boolean`
+Default: `false`
+
+Remove ALL query params from the url
+
+```elixir
+NormalizeUrl.normalize_url("http://johnotander.com?a=a&b=b")
+# => "http://johnotander.com?a=a&b=b"
+
+NormalizeUrl.normalize_url("http://johnotander.com?a=a&b=b", [strip_params: true])
+# => "http://johnotander.com"
+```
+
 ##### :normalize_protocol
 
-Type: `boolean`   
+Type: `boolean`
 Default: `true`
 
 Normalize relative protocols
@@ -79,7 +94,7 @@ NormalizeUrl.normalize_url("//www.johnotander.com", [normalize_protocol: false])
 
 ##### add_root_path
 
-Type: `boolean`   
+Type: `boolean`
 Default: `false`
 
 Adds a trailing slash for the root path, if the path is empty.

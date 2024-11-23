@@ -117,23 +117,23 @@ defmodule NormalizeUrlTest do
     )
   end
 
-  test "does not removes trailing slash from path if trip_trailing_slash false" do
+  test "does not removes trailing slash from path if trim_trailing_slash false" do
     assert(
-      NormalizeUrl.normalize_url("http://google.com/test/", trip_trailing_slash: false) ==
+      NormalizeUrl.normalize_url("http://google.com/test/", trim_trailing_slash: false) ==
         "http://google.com/test/"
     )
   end
 
-  test "removes trailing slash from path if trip_trailing_slash true" do
+  test "removes trailing slash from path if trim_trailing_slash true" do
     assert(
-      NormalizeUrl.normalize_url("http://google.com/test/", trip_trailing_slash: true) ==
+      NormalizeUrl.normalize_url("http://google.com/test/", trim_trailing_slash: true) ==
         "http://google.com/test"
     )
 
     assert(
       NormalizeUrl.normalize_url("http://google.com",
         add_root_path: true,
-        trip_trailing_slash: true
+        trim_trailing_slash: true
       ) == "http://google.com/"
     )
   end
